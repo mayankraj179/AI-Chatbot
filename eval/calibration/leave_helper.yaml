@@ -1,0 +1,26 @@
+# Calibration queries for min_similarity (fictional content in content/leave_helper).
+# relevant: answerable from the documents; unrelated: must not retrieve anything.
+assistant_id: leave_helper
+relevant:
+  - How many days of annual leave do I get per year?
+  - Can I carry over unused annual leave?
+  - How many casual leave days are there?
+  - Do I need a medical certificate for sick leave?
+  - How long is parental leave for partners?
+  - How far in advance must I apply for annual leave?
+  - Which public holidays are there in 2026?
+  - When is Founders' Day?
+  - What happens if I work on a public holiday?
+  - How quickly must managers approve leave requests?
+  - How many people from one team can be on leave during the quarter-end freeze?
+unrelated:
+  - What is the capital of Australia?
+  - How do I reset my laptop password?
+  - Explain how a transformer neural network works.
+  - What is the best recipe for chocolate cake?
+  - Who won the football world cup in 2018?
+  - How do I file an expense report for a client dinner?
+  - What is the stock price of the company today?
+  - Write a Python function that reverses a string.
+  - What is the company's policy on remote work equipment?
+  - How do I book a meeting room?

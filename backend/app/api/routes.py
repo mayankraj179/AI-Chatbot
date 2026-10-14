@@ -213,3 +213,33 @@ async def chat_stream(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+class SearchRequest(BaseModel):
+    assistant_id: str
+    query: str
+
+
+class SearchResponse(BaseModel):
+    citations: list[dict[str, Any]]
+
+
+@router.post("/search", response_model=SearchResponse)
+async def search(
+    body: SearchRequest,
+    principal: Principal = Depends(require_permission(PERMISSION_CHAT)),
+    chat: ChatService = Depends(get_chat_service),
+) -> SearchResponse:
+    """Permission-filtered retrieval only (no model call); used for checks and evaluation."""
+    try:
+        chunks = await chat.search(principal, body.assistant_id, body.query)
+    except AssistantNotFoundError:
+        raise _not_found("assistant") from None
+    except InputRejectedError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=exc.detail) from None
+    except ProviderError as exc:
+        logger.error("embedding failed: %s %s", exc.provider, exc.kind)
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, detail="embedding provider error"
+        ) from None
+    return SearchResponse(citations=[c.citation(n) for n, c in enumerate(chunks, start=1)])

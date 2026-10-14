@@ -44,3 +44,35 @@ def test_status_codes_classified() -> None:
     }
     for (code, status, message), kind in cases.items():
         assert classify_gemini_error(_error(code, body(code, status, message))).kind == kind
+
+
+def test_gemini_embeddings_require_key() -> None:
+    import pytest
+
+    from app.providers.base import ProviderError
+    from app.providers.embeddings import GeminiEmbeddingProvider
+
+    with pytest.raises(ProviderError) as info:
+        GeminiEmbeddingProvider("gemini-embedding-001", api_key=None)
+    assert info.value.kind == "INVALID_KEY"
+
+
+def test_gemini_embeddings_use_task_types() -> None:
+    import asyncio
+    from types import SimpleNamespace
+
+    from app.providers.embeddings import GeminiEmbeddingProvider
+
+    calls = []
+
+    async def embed_content(*, model, contents, config):
+        calls.append((model, list(contents), config.task_type))
+        return SimpleNamespace(embeddings=[SimpleNamespace(values=[0.1, 0.2]) for _ in contents])
+
+    provider = GeminiEmbeddingProvider("gemini-embedding-001", api_key="test-key")
+    provider._client = SimpleNamespace(
+        aio=SimpleNamespace(models=SimpleNamespace(embed_content=embed_content))
+    )
+    assert asyncio.run(provider.embed_documents(["a", "b"])) == [[0.1, 0.2], [0.1, 0.2]]
+    assert asyncio.run(provider.embed_query("q")) == [0.1, 0.2]
+    assert [c[2] for c in calls] == ["RETRIEVAL_DOCUMENT", "RETRIEVAL_QUERY"]

@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     auth_admin_role: str = "chatbot-admin"
 
     gemini_api_key: str | None = None
+    # Knowledge source paths in assistant YAML are relative to this directory.
+    content_root: str = "../content"
+    embedding_cache_dir: str = ".cache/fastembed"
 
     @field_validator("auth_algorithms", mode="before")
     @classmethod

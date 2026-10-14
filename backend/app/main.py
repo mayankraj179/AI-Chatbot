@@ -7,12 +7,13 @@ from fastapi import FastAPI
 
 from app.api.routes import router
 from app.auth.jwt_validator import JwtValidator
-from app.chat.service import ChatService, ProviderFactory
+from app.chat.service import ChatService, EmbedderFactory, ProviderFactory
 from app.config.loader import load_all_assistant_configs
 from app.config.settings import Settings, get_settings
 from app.db.session import create_engine, create_session_factory
-from app.providers.factory import build_model_provider
+from app.providers.factory import build_embedding_provider, build_model_provider
 from app.services.conversations import ConversationStore
+from app.services.retrieval import Retriever
 
 
 def create_app(
@@ -20,6 +21,7 @@ def create_app(
     *,
     jwt_validator: JwtValidator | None = None,
     provider_factory: ProviderFactory | None = None,
+    embedder_factory: EmbedderFactory | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     # Fail at startup, with the file name and field, if any assistant config is invalid.
@@ -28,13 +30,17 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         engine = create_engine(settings.database_url)
-        store = ConversationStore(create_session_factory(engine))
+        session_factory = create_session_factory(engine)
+        store = ConversationStore(session_factory)
         app.state.conversation_store = store
         app.state.jwt_validator = jwt_validator or JwtValidator(settings)
         app.state.chat_service = ChatService(
             assistants,
             store,
             provider_factory or (lambda config: build_model_provider(config, settings)),
+            retriever=Retriever(session_factory),
+            embedder_factory=embedder_factory
+            or (lambda config: build_embedding_provider(config, settings)),
         )
         try:
             yield

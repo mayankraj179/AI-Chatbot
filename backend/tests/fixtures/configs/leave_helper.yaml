@@ -1,0 +1,13 @@
+assistant_id: leave_helper
+display_name: Leave Helper
+description: Test assistant.
+tenant_id: local-development
+model: {provider: gemini, model_name: test-model}
+retrieval:
+  enabled: true
+  top_k: 3
+  min_similarity: 0.3
+system_prompt: Answer from documents only.
+knowledge_sources:
+  - {type: filesystem, path: public, access_labels: ["tenant:local-development"]}
+  - {type: filesystem, path: managers, access_labels: ["role:manager"]}

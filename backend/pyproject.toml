@@ -16,6 +16,12 @@ dependencies = [
     "pyjwt[crypto]>=2.15",
     # Gemini chat + embeddings, used directly (no agent framework).
     "google-genai>=1.0",
+    # Document parsers (Phase 2).
+    "pypdf>=5.0",
+    "python-docx>=1.1",
+    "openpyxl>=3.1",
+    # Local embedding model (default provider; no key, no quota).
+    "fastembed>=0.4",
 ]
 
 [project.optional-dependencies]
