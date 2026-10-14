@@ -8,6 +8,14 @@ dependencies = [
     "uvicorn[standard]>=0.32",
     "pydantic>=2.9",
     "pydantic-settings>=2.5",
+    "pyyaml>=6.0.2",
+    "sqlalchemy[asyncio]>=2.0.35",
+    "asyncpg>=0.29",
+    "alembic>=1.13",
+    # 2.15+: fixes a RecursionError on deeply nested tokens (GHSA-42vr-xj54-vc7v).
+    "pyjwt[crypto]>=2.15",
+    # Gemini chat + embeddings, used directly (no agent framework).
+    "google-genai>=1.0",
 ]
 
 [project.optional-dependencies]
@@ -39,3 +47,6 @@ testpaths = ["tests"]
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "app.auth.dependencies.require_permission"]

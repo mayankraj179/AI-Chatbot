@@ -91,9 +91,11 @@ trimmed to what each phase needs.
 1. **Gemini API key.** No secrets exist in this session. Phase 1 live
    verification of `/chat` needs `GEMINI_API_KEY`. Options: skip (Phase 1 provider
    becomes mock-tested only), this session only, or saved for future sessions.
+   **Answer (2026-10-14): skip.** The Gemini provider is mock-tested only in Phase 1.
 2. **Empty repo / base branch.** A PR needs a base branch. May I push one bootstrap
    commit straight to `main` containing only `.gitignore`, `.env.example` and this
    `docs/PLAN.md`, then open Phase 0 and Phase 1 as PRs against it?
+   **Answer (2026-10-14): yes.** The bootstrap commit is on `main`; Phase 1 is stacked on Phase 0.
 
 ## 6. Open risks
 

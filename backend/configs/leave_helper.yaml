@@ -1,0 +1,32 @@
+# Sample assistant (fictional company). One file per assistant; secrets only via env vars.
+assistant_id: leave_helper
+display_name: Leave Helper
+description: Answers questions about the (fictional) leave and holiday policy.
+tenant_id: local-development
+
+model:
+  provider: gemini
+  model_name: gemini-2.5-flash
+
+# Enabled in Phase 2, once min_similarity is measured for this assistant's
+# embedding model with real relevant and unrelated queries.
+retrieval:
+  enabled: false
+  top_k: 8
+  embedding_provider: gemini
+
+guardrails:
+  prompt_injection_screening: true
+  input_pii_block: false
+  output_pii_block: false
+  max_input_chars: 4000
+
+# current_datetime and calculate are implemented in Phase 3.
+enabled_tools: []
+
+system_prompt: >
+  You are Leave Helper, an assistant for employee questions about leave and
+  holidays. On yes/no questions give the direct answer first, naming the
+  specific status. Be concise.
+
+knowledge_sources: []
