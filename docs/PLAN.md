@@ -102,3 +102,18 @@ trimmed to what each phase needs.
 - Free Gemini quota (~20 chat requests/day) limits live checks; batched, no retries.
 - Keycloak imports the realm only into an empty volume; later realm changes go
   through the admin API (documented in README).
+
+## Phase 2 notes (ingestion and retrieval)
+
+- **Embedding provider (decided without an answer yet):** the embedding interface supports `fastembed` (local
+  `BAAI/bge-small-en-v1.5`, default) and `gemini` (`gemini-embedding-001`), chosen per assistant in YAML. Local
+  embeddings are real model embeddings with no key or quota, so calibration could be run live here.
+- Sample content follows the SAMPLE DATA section: leave policy, holiday calendar and travel policy for `leave_helper`
+  (label `tenant:local-development`), and the Nova Horizon report for `finance_helper` (label `role:chatbot-admin`, so
+  `dev_user` gets nothing and `dev_admin` gets cited chunks).
+- Knowledge source paths are relative to `CONTENT_ROOT` (default `../content`) and may not escape it.
+- When retrieval finds nothing the user may see, `/chat` returns a fixed "I don't know" answer without a model call.
+- `POST /search` (read-only, behind auth) exposes permission-filtered retrieval for live checks and Phase 8 evaluation.
+- The vector column is dimensionless (so models with different sizes coexist), so there is no ANN index; search is an
+  exact scan within `(tenant, assistant, embedding_model)`. Fine for sample-sized corpora; revisit with real volumes.
+- Details, how source changes reach embeddings, and calibration numbers: `docs/retrieval.md`.

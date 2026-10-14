@@ -78,7 +78,7 @@ then `docker volume rm ai-chatbot_keycloak_data` and `up -d` again.
 `vector` and creates a separate `chatbot_test` database. Tests never use the dev
 database `chatbot`.
 
-## Running the API (Phase 1)
+## Running the API
 
 ```bash
 cd backend
@@ -102,8 +102,16 @@ curl -N -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/
   localhost:8000/chat/stream
 ```
 
-Retrieval arrives in Phase 2, so for now every answer is ungrounded and the model is told to say
-it does not know. Assistants are defined by YAML files in `backend/configs/`.
+Before chatting, index the fictional sample content (local embedding model, no key needed):
+
+```bash
+.venv/bin/python -m app.ingestion       # re-run after content changes; unchanged files are skipped
+```
+
+Assistants are defined by YAML files in `backend/configs/`, and their knowledge sources live under `content/`.
+`POST /search` shows the permission-filtered chunks for a query without calling the model.
+See [docs/retrieval.md](docs/retrieval.md) for parsing, chunking, access labels, how source changes reach
+embeddings, and the `min_similarity` calibration.
 
 ## Development checks
 

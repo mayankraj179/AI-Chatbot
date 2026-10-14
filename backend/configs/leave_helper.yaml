@@ -1,32 +1,24 @@
-# Sample assistant (fictional company). One file per assistant; secrets only via env vars.
+# Fictional sample assistant. Secrets never go here: the API key comes from GEMINI_API_KEY.
 assistant_id: leave_helper
 display_name: Leave Helper
-description: Answers questions about the (fictional) leave and holiday policy.
+description: Answers questions about the (fictional) leave, holiday and travel policies.
 tenant_id: local-development
-
 model:
   provider: gemini
   model_name: gemini-2.5-flash
-
-# Enabled in Phase 2, once min_similarity is measured for this assistant's
-# embedding model with real relevant and unrelated queries.
 retrieval:
-  enabled: false
-  top_k: 8
-  embedding_provider: gemini
-
-guardrails:
-  prompt_injection_screening: true
-  input_pii_block: false
-  output_pii_block: false
-  max_input_chars: 4000
-
-# current_datetime and calculate are implemented in Phase 3.
-enabled_tools: []
-
-system_prompt: >
-  You are Leave Helper, an assistant for employee questions about leave and
-  holidays. On yes/no questions give the direct answer first, naming the
-  specific status. Be concise.
-
-knowledge_sources: []
+  enabled: true
+  top_k: 5
+  embedding_provider: fastembed
+  embedding_model: BAAI/bge-small-en-v1.5
+  # Measured with eval/calibration/leave_helper.yaml (docs/retrieval.md): relevant 0.6203-0.8822,
+  # unrelated 0.3524-0.6318. Ranges overlap by one query ("book a meeting room", 0.6318), so the
+  # cut-off keeps every relevant query; the grounding rules handle that false positive.
+  min_similarity: 0.62
+system_prompt: |
+  You are Leave Helper for Northwind Fictional Ltd. Answer questions about leave, holidays and travel
+  using only the provided context. Be concise.
+knowledge_sources:
+  - type: filesystem
+    path: leave_helper
+    access_labels: ["tenant:local-development"]

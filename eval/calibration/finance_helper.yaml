@@ -1,0 +1,13 @@
+assistant_id: finance_helper
+relevant:
+  - What was Nova Horizon's revenue in FY2023?
+  - What was the net profit in FY2025?
+  - How much did revenue grow from FY2021 to FY2025?
+  - Show the revenue trend for Nova Horizon.
+  - What was the net profit in FY2022?
+unrelated:
+  - What is the capital of France?
+  - How many casual leave days are there?
+  - Plan me a trip to Bali.
+  - How do I reset my laptop password?
+  - What is the best recipe for chocolate cake?

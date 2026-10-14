@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import math
 import os
+import re
 import time
 import uuid
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Iterator, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -13,11 +16,13 @@ import pytest
 from alembic.config import Config
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from alembic import command
 from app.auth.jwt_validator import JwtValidator
+from app.config.loader import load_all_assistant_configs
 from app.config.settings import Settings
+from app.ingestion.service import IngestReport, ingest_assistant
 from app.main import create_app
 from app.providers.base import (
     ModelReply,
@@ -30,6 +35,7 @@ from app.providers.base import (
 )
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
 # Tests always use their own database, never the dev database.
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL",
@@ -73,6 +79,33 @@ class TokenFactory:
         return jwt.encode(claims, self.private_key, algorithm="RS256")
 
 
+class FakeEmbedder:
+    """Deterministic bag-of-words embedding: shared words give high cosine similarity."""
+
+    name = "fake"
+    model_id = "fake:bow-64"
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    @staticmethod
+    def vector(text: str) -> list[float]:
+        values = [0.0] * 64
+        for word in re.findall(r"[a-z]+", text.lower()):
+            if len(word) > 3:
+                values[int(hashlib.md5(word.encode()).hexdigest(), 16) % 64] += 1.0  # noqa: S324
+        norm = math.sqrt(sum(v * v for v in values)) or 1.0
+        return [v / norm for v in values]
+
+    async def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
+        self.calls += 1
+        return [self.vector(t) for t in texts]
+
+    async def embed_query(self, text: str) -> list[float]:
+        self.calls += 1
+        return self.vector(text)
+
+
 class FakeProvider:
     name = "fake"
     model_name = "fake-model"
@@ -110,7 +143,8 @@ def settings(tmp_path_factory: pytest.TempPathFactory) -> Settings:
     return Settings(
         _env_file=None,
         database_url=TEST_DATABASE_URL,
-        assistant_configs_dir=str(BACKEND_DIR / "configs"),
+        assistant_configs_dir=str(FIXTURES / "configs"),
+        content_root=str(FIXTURES / "content"),
         auth_issuer=ISSUER,
         auth_audience=AUDIENCE,
         auth_jwks_url="http://unused.test/certs",
@@ -133,7 +167,9 @@ def _truncate(url: str) -> None:
     async def run() -> None:
         engine = create_async_engine(url)
         async with engine.begin() as conn:
-            await conn.exec_driver_sql("TRUNCATE messages, conversations CASCADE")
+            await conn.exec_driver_sql(
+                "TRUNCATE messages, conversations, chunks, documents CASCADE"
+            )
         await engine.dispose()
 
     asyncio.run(run())
@@ -145,12 +181,44 @@ def provider() -> FakeProvider:
 
 
 @pytest.fixture
+def embedder() -> FakeEmbedder:
+    return FakeEmbedder()
+
+
+def ingest_fixtures(url: str, settings: Settings, embedder: FakeEmbedder) -> IngestReport:
+    async def run() -> IngestReport:
+        engine = create_async_engine(url)
+        try:
+            configs = load_all_assistant_configs(settings.assistant_configs_dir)
+            return await ingest_assistant(
+                configs["leave_helper"],
+                embedder,
+                async_sessionmaker(engine, expire_on_commit=False),
+                Path(settings.content_root),
+            )
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(run())
+
+
+@pytest.fixture
 def client(
-    migrated_db: str, settings: Settings, tokens: TokenFactory, provider: FakeProvider
+    migrated_db: str,
+    settings: Settings,
+    tokens: TokenFactory,
+    provider: FakeProvider,
+    embedder: FakeEmbedder,
 ) -> Iterator[TestClient]:
     _truncate(migrated_db)
+    ingest_fixtures(migrated_db, settings, embedder)
     validator = JwtValidator(settings, jwks_client=FakeJwksClient(tokens.public_key))
-    app = create_app(settings, jwt_validator=validator, provider_factory=lambda _cfg: provider)
+    app = create_app(
+        settings,
+        jwt_validator=validator,
+        provider_factory=lambda _cfg: provider,
+        embedder_factory=lambda _cfg: embedder,
+    )
     with TestClient(app) as test_client:
         yield test_client
 

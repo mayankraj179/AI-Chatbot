@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 # Provider and tool names the platform implements. A config naming anything else is
 # rejected at load time. Tools are implemented in Phase 3; their names are reserved now.
 KNOWN_MODEL_PROVIDERS = frozenset({"gemini"})
-KNOWN_EMBEDDING_PROVIDERS = frozenset({"gemini"})
+KNOWN_EMBEDDING_PROVIDERS = frozenset({"fastembed", "gemini"})
 KNOWN_TOOLS = frozenset({"current_datetime", "calculate"})
 KNOWN_SOURCE_TYPES = frozenset({"filesystem"})
 
@@ -47,7 +47,10 @@ class RetrievalConfig(_Strict):
     top_k: int = Field(default=8, ge=1, le=50)
     # Measured per assistant and embedding model (Phase 2); required when enabled.
     min_similarity: float | None = Field(default=None, ge=-1.0, le=1.0)
-    embedding_provider: str = "gemini"
+    embedding_provider: str = "fastembed"
+    embedding_model: str = Field(default="BAAI/bge-small-en-v1.5", min_length=1)
+    chunk_max_chars: int = Field(default=1200, ge=200, le=8000)
+    chunk_overlap_chars: int = Field(default=150, ge=0, le=1000)
 
     @field_validator("embedding_provider")
     @classmethod
@@ -140,3 +143,9 @@ class AssistantConfig(_Strict):
                     f"chart_trigger_patterns: invalid regex {pattern!r}: {exc}"
                 ) from exc
         return v
+
+    @model_validator(mode="after")
+    def _retrieval_needs_sources(self) -> AssistantConfig:
+        if self.retrieval.enabled and not self.knowledge_sources:
+            raise ValueError("retrieval is enabled but no knowledge_sources are configured")
+        return self
