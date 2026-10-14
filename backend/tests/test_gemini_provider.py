@@ -76,3 +76,43 @@ def test_gemini_embeddings_use_task_types() -> None:
     assert asyncio.run(provider.embed_documents(["a", "b"])) == [[0.1, 0.2], [0.1, 0.2]]
     assert asyncio.run(provider.embed_query("q")) == [0.1, 0.2]
     assert [c[2] for c in calls] == ["RETRIEVAL_DOCUMENT", "RETRIEVAL_QUERY"]
+
+
+def test_gemini_tool_calls_round_trip() -> None:
+    import asyncio
+    from types import SimpleNamespace
+
+    from google.genai import types
+
+    from app.providers.base import ModelRequest, ToolCall, ToolExchange, ToolSpec
+    from app.providers.gemini import GeminiModelProvider
+
+    seen = {}
+
+    async def generate_content(*, model, contents, config):
+        seen["contents"], seen["config"] = contents, config
+        call = types.FunctionCall(id="c1", name="calculate", args={"expression": "1+1"})
+        return types.GenerateContentResponse(
+            candidates=[
+                types.Candidate(
+                    content=types.Content(role="model", parts=[types.Part(function_call=call)])
+                )
+            ]
+        )
+
+    client = SimpleNamespace(
+        aio=SimpleNamespace(models=SimpleNamespace(generate_content=generate_content))
+    )
+    provider = GeminiModelProvider(model_name="m", api_key=None, client=client)
+    spec = ToolSpec("calculate", "math", {"type": "object", "properties": {}})
+    exchange = ToolExchange(ToolCall("calculate", {"expression": "2+2"}, "c0"), {"result": "4"})
+    request = ModelRequest("sys", [], "q", tools=[spec], tool_exchanges=[exchange])
+    reply = asyncio.run(provider.generate(request))
+    assert reply.tool_calls == (ToolCall("calculate", {"expression": "1+1"}, "c1"),)
+    assert reply.text == ""
+    declaration = seen["config"].tools[0].function_declarations[0]
+    assert declaration.name == "calculate"
+    assert seen["config"].automatic_function_calling.disable is True
+    roles = [c.role for c in seen["contents"]]
+    assert roles == ["user", "model", "user"]
+    assert seen["contents"][2].parts[0].function_response.response == {"result": "4"}

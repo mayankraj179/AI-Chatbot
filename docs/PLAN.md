@@ -117,3 +117,14 @@ trimmed to what each phase needs.
 - The vector column is dimensionless (so models with different sizes coexist), so there is no ANN index; search is an
   exact scan within `(tenant, assistant, embedding_model)`. Fine for sample-sized corpora; revisit with real volumes.
 - Details, how source changes reach embeddings, and calibration numbers: `docs/retrieval.md`.
+
+## Phase 3 notes (guardrails and grounding)
+
+- Input guardrail hits return 400 with `{reason, message}` and are not saved, so injected text never enters history.
+- Before calling a model with zero chunks, a cheap intent check (`may_need_tool`) refuses messages with no
+  arithmetic or date/time intent. Out-of-scope questions ("capital of France", "plan me a trip to Bali") are
+  therefore refused deterministically, with no provider call, on every provider.
+- The turn `outcome` (greeting, answered, refused, no_context, tool_answer, output_pii) is returned and logged; the
+  `turn_audit` table that stores it is Phase 7.
+- Only Gemini exists so far, so "refused on every provider" is verified for Gemini's code path; Phase 5 providers
+  reuse the same shared pipeline.

@@ -32,6 +32,7 @@ from app.providers.base import (
     StreamEnd,
     StreamEvent,
     TokenUsage,
+    ToolCall,
 )
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -114,12 +115,15 @@ class FakeProvider:
         self.requests: list[ModelRequest] = []
         self.fail_with: ProviderError | None = None
         self.fail_mid_stream = False
-        self.chunks = ["I don't know ", "based on the available documents."]
+        self.chunks = ["Employees get eight casual leave days ", "every year."]
+        self.tool_rounds: list[list[ToolCall]] = []
 
     async def generate(self, request: ModelRequest) -> ModelReply:
         self.requests.append(request)
         if self.fail_with:
             raise self.fail_with
+        if request.tools and self.tool_rounds:
+            return ModelReply("", TokenUsage(10, 5, 0), tool_calls=tuple(self.tool_rounds.pop(0)))
         return ModelReply("".join(self.chunks), TokenUsage(10, 5, 0))
 
     async def stream(self, request: ModelRequest) -> AsyncIterator[StreamEvent]:

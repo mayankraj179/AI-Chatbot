@@ -15,6 +15,7 @@ retrieval:
   # unrelated 0.3524-0.6318. Ranges overlap by one query ("book a meeting room", 0.6318), so the
   # cut-off keeps every relevant query; the grounding rules handle that false positive.
   min_similarity: 0.62
+enabled_tools: [current_datetime, calculate]
 system_prompt: |
   You are Leave Helper for Northwind Fictional Ltd. Answer questions about leave, holidays and travel
   using only the provided context. Be concise.

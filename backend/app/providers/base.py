@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass, field
-from typing import Literal, Protocol
+from typing import Any, Literal, Protocol
 
 Role = Literal["user", "assistant"]
 
@@ -14,10 +14,34 @@ class ChatTurn:
 
 
 @dataclass(frozen=True)
+class ToolSpec:
+    name: str
+    description: str
+    parameters: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class ToolCall:
+    name: str
+    arguments: dict[str, Any]
+    id: str | None = None
+
+
+@dataclass(frozen=True)
+class ToolExchange:
+    """One executed tool call and its result, sent back to the model."""
+
+    call: ToolCall
+    result: dict[str, Any]
+
+
+@dataclass(frozen=True)
 class ModelRequest:
     system_prompt: str
     history: Sequence[ChatTurn]
     user_message: str
+    tools: Sequence[ToolSpec] = ()
+    tool_exchanges: Sequence[ToolExchange] = ()
 
 
 @dataclass(frozen=True)
@@ -31,6 +55,7 @@ class TokenUsage:
 class ModelReply:
     text: str
     usage: TokenUsage = field(default_factory=TokenUsage)
+    tool_calls: tuple[ToolCall, ...] = ()
 
 
 @dataclass(frozen=True)

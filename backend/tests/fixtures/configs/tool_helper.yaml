@@ -1,0 +1,6 @@
+assistant_id: tool_helper
+display_name: Tool Helper
+tenant_id: local-development
+model: {provider: gemini, model_name: test-model}
+enabled_tools: [calculate, current_datetime]
+system_prompt: Answer from documents or tools only.

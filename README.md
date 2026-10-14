@@ -110,7 +110,8 @@ Before chatting, index the fictional sample content (local embedding model, no k
 
 Assistants are defined by YAML files in `backend/configs/`, and their knowledge sources live under `content/`.
 `POST /search` shows the permission-filtered chunks for a query without calling the model.
-See [docs/retrieval.md](docs/retrieval.md) for parsing, chunking, access labels, how source changes reach
+Greetings, prompt-injection screening, refusal detection and the read-only tools are described in
+[docs/guardrails.md](docs/guardrails.md). See [docs/retrieval.md](docs/retrieval.md) for parsing, chunking, access labels, how source changes reach
 embeddings, and the `min_similarity` calibration.
 
 ## Development checks

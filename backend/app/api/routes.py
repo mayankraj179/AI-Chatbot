@@ -82,6 +82,8 @@ class ChatResponse(BaseModel):
     answer: str
     grounded: bool
     citations: list[dict[str, Any]]
+    outcome: str
+    tools_used: list[str]
 
 
 def _not_found(what: str) -> HTTPException:
@@ -158,7 +160,9 @@ async def _prepare(chat: ChatService, principal: Principal, body: ChatRequest) -
     except ConversationNotFoundError:
         raise _not_found("session") from None
     except InputRejectedError as exc:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=exc.detail) from None
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, detail={"reason": exc.reason, "message": exc.message}
+        ) from None
     except ProviderError as exc:
         logger.error("provider setup failed: %s %s", exc.provider, exc.kind)
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail="model provider error") from None
@@ -187,6 +191,8 @@ async def chat_once(
         answer=result.answer,
         grounded=result.grounded,
         citations=result.citations,
+        outcome=result.outcome,
+        tools_used=result.tools_used,
     )
 
 
@@ -236,7 +242,9 @@ async def search(
     except AssistantNotFoundError:
         raise _not_found("assistant") from None
     except InputRejectedError as exc:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=exc.detail) from None
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, detail={"reason": exc.reason, "message": exc.message}
+        ) from None
     except ProviderError as exc:
         logger.error("embedding failed: %s %s", exc.provider, exc.kind)
         raise HTTPException(

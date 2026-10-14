@@ -14,6 +14,7 @@ retrieval:
   # Measured with eval/calibration/finance_helper.yaml (docs/retrieval.md): relevant
   # 0.7077-0.8447, unrelated 0.3168-0.4594 -> midpoint.
   min_similarity: 0.584
+enabled_tools: [current_datetime, calculate]
 system_prompt: |
   You are Finance Helper. Answer questions about the Nova Horizon Inc. financial report using only the
   provided context. State figures with their units.

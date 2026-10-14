@@ -14,6 +14,7 @@ from app.providers.base import (
     StreamEnd,
     StreamEvent,
     TokenUsage,
+    ToolCall,
 )
 
 PROVIDER = "gemini"
@@ -79,12 +80,57 @@ class GeminiModelProvider:
             for turn in request.history
         ]
         contents.append(types.Content(role="user", parts=[types.Part(text=request.user_message)]))
+        for exchange in request.tool_exchanges:
+            contents.append(
+                types.Content(
+                    role="model",
+                    parts=[
+                        types.Part(
+                            function_call=types.FunctionCall(
+                                id=exchange.call.id,
+                                name=exchange.call.name,
+                                args=exchange.call.arguments,
+                            )
+                        )
+                    ],
+                )
+            )
+            contents.append(
+                types.Content(
+                    role="user",
+                    parts=[
+                        types.Part(
+                            function_response=types.FunctionResponse(
+                                id=exchange.call.id,
+                                name=exchange.call.name,
+                                response=exchange.result,
+                            )
+                        )
+                    ],
+                )
+            )
         return contents
 
     def _config(self, request: ModelRequest) -> types.GenerateContentConfig:
+        tools = None
+        if request.tools:
+            tools = [
+                types.Tool(
+                    function_declarations=[
+                        types.FunctionDeclaration(
+                            name=spec.name,
+                            description=spec.description,
+                            parameters_json_schema=spec.parameters,
+                        )
+                        for spec in request.tools
+                    ]
+                )
+            ]
         return types.GenerateContentConfig(
             system_instruction=request.system_prompt,
             temperature=0.2,
+            tools=tools,
+            # The application executes tools itself (read-only registry), never the SDK.
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
         )
 
@@ -97,7 +143,12 @@ class GeminiModelProvider:
             )
         except errors.APIError as exc:
             raise classify_gemini_error(exc) from None
-        return ModelReply(text=response.text or "", usage=_usage(response.usage_metadata))
+        calls = tuple(
+            ToolCall(name=fc.name or "", arguments=dict(fc.args or {}), id=fc.id)
+            for fc in (response.function_calls or [])
+        )
+        text = "" if calls else (response.text or "")
+        return ModelReply(text=text, usage=_usage(response.usage_metadata), tool_calls=calls)
 
     async def stream(self, request: ModelRequest) -> AsyncIterator[StreamEvent]:
         usage = TokenUsage()
