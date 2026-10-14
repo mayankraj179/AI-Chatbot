@@ -78,6 +78,33 @@ then `docker volume rm ai-chatbot_keycloak_data` and `up -d` again.
 `vector` and creates a separate `chatbot_test` database. Tests never use the dev
 database `chatbot`.
 
+## Running the API (Phase 1)
+
+```bash
+cd backend
+cp ../.env.example .env            # then set GEMINI_API_KEY in .env (never commit it)
+.venv/bin/alembic upgrade head     # creates conversations/messages tables
+.venv/bin/uvicorn app.main:app --port 8000
+```
+
+Endpoints: `GET /health` (public), `GET /assistants`, `POST /sessions`,
+`GET /sessions/{id}/messages`, `POST /chat`, `POST /chat/stream` (SSE: `delta`, `done`, `error`).
+All except `/health` need `Authorization: Bearer <access token>`.
+
+```bash
+TOKEN=$(scripts/get_token.sh dev_user)
+curl -s -H "Authorization: Bearer $TOKEN" localhost:8000/assistants
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"assistant_id":"leave_helper","message":"How many casual leaves do I get?"}' \
+  localhost:8000/chat
+curl -N -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"assistant_id":"leave_helper","message":"How many casual leaves do I get?"}' \
+  localhost:8000/chat/stream
+```
+
+Retrieval arrives in Phase 2, so for now every answer is ungrounded and the model is told to say
+it does not know. Assistants are defined by YAML files in `backend/configs/`.
+
 ## Development checks
 
 ```bash
