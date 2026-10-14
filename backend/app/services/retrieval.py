@@ -24,6 +24,8 @@ SEARCH_SQL = text(
     WHERE c.tenant_id = :tenant_id
       AND c.assistant_id = :assistant_id
       AND c.embedding_model = :embedding_model
+      AND c.retired_at IS NULL
+      AND d.retired_at IS NULL
       AND c.access_labels && CAST(:labels AS text[])
       AND 1 - (c.embedding <=> q.v) >= :min_similarity
     ORDER BY c.embedding <=> q.v

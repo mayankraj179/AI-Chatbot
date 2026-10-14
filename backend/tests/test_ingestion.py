@@ -9,6 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.config.loader import load_assistant_config
+from app.ingestion import service
 from app.ingestion.service import ingest_assistant, resolve_source_dir
 from tests.conftest import FIXTURES, FakeEmbedder, _truncate
 
@@ -46,7 +47,27 @@ def workspace(tmp_path: Path, migrated_db: str) -> Path:
     return tmp_path / "content"
 
 
-def test_ingest_is_idempotent_and_tracks_changes(workspace: Path, migrated_db: str) -> None:
+def _active(url: str) -> list[tuple[str, int, int]]:
+    async def go():
+        engine = create_async_engine(url)
+        try:
+            async with engine.connect() as conn:
+                rows = await conn.execute(
+                    text(
+                        "SELECT d.source_uri, c.version, count(*) FROM chunks c "
+                        "JOIN documents d ON d.id = c.document_id "
+                        "WHERE c.retired_at IS NULL AND d.retired_at IS NULL "
+                        "GROUP BY 1, 2 ORDER BY 1"
+                    )
+                )
+                return [tuple(r) for r in rows]
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(go())
+
+
+def test_ingest_is_idempotent_versions_and_never_deletes(workspace: Path, migrated_db: str) -> None:
     config = FIXTURES / "configs" / "leave_helper.yaml"
     embedder = FakeEmbedder()
     first, rows = _run(migrated_db, workspace, embedder, config)
@@ -55,22 +76,54 @@ def test_ingest_is_idempotent_and_tracks_changes(workspace: Path, migrated_db: s
         "managers/approvals.md": "{role:manager}",
         "public/leave.md": "{tenant:local-development}",
     }
+    total_chunks = sum(n for _, n, _ in rows)
 
     calls = embedder.calls
+    # Touching a file without changing its parsed text is not a change.
+    leave = workspace / "public" / "leave.md"
+    leave.write_text(leave.read_text(encoding="utf-8") + "\n\n", encoding="utf-8")
     second, rows_again = _run(migrated_db, workspace, embedder, config)
     assert sorted(second.unchanged) == ["managers/approvals.md", "public/leave.md"]
     assert second.added == second.updated == [] and embedder.calls == calls
     assert rows_again == rows
 
-    (workspace / "public" / "leave.md").write_text("# Leave\nNew text only.\n", encoding="utf-8")
+    leave.write_text("# Leave\nNew text only.\n", encoding="utf-8")
     (workspace / "managers" / "approvals.md").unlink()
     (workspace / "public" / "broken.pdf").write_bytes(b"not a pdf")
     (workspace / "public" / ".hidden.md").write_text("# secret draft", encoding="utf-8")
     third, rows = _run(migrated_db, workspace, embedder, config)
     assert third.updated == ["public/leave.md"]
-    assert third.removed == ["managers/approvals.md"]
+    assert third.retired == ["managers/approvals.md"]
     assert list(third.failed) == ["public/broken.pdf"]
-    assert rows == [("public/leave.md", 1, "{tenant:local-development}")]
+    assert _active(migrated_db) == [("public/leave.md", 2, 1)]
+    # Old versions and retired documents are kept, only flagged.
+    assert sum(n for _, n, _ in rows) == total_chunks + 1
+
+    (workspace / "managers").mkdir(exist_ok=True)
+    (workspace / "managers" / "approvals.md").write_text("# Approvals\nBack again.", "utf-8")
+    fourth, _ = _run(migrated_db, workspace, embedder, config)
+    assert fourth.updated == ["managers/approvals.md"]
+    assert ("managers/approvals.md", 2, 1) in _active(migrated_db)
+
+
+def test_failed_swap_keeps_previous_version_active(
+    workspace: Path, migrated_db: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = FIXTURES / "configs" / "leave_helper.yaml"
+    _run(migrated_db, workspace, FakeEmbedder(), config)
+    before = _active(migrated_db)
+
+    async def fail_commit(*args, **kwargs):
+        raise RuntimeError("simulated failure before commit")
+
+    monkeypatch.setattr(service, "_retire_previous", fail_commit)
+    (workspace / "public" / "leave.md").write_text("# Leave\nChanged.\n", encoding="utf-8")
+    report, _ = _run(migrated_db, workspace, FakeEmbedder(), config)
+    assert report.failed == {"public/leave.md": "could not store new version (RuntimeError)"}
+    assert _active(migrated_db) == before
+    monkeypatch.undo()
+    retry, _ = _run(migrated_db, workspace, FakeEmbedder(), config)
+    assert retry.updated == ["public/leave.md"]
 
 
 def test_source_path_cannot_escape_content_root(tmp_path: Path) -> None:

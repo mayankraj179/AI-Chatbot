@@ -108,6 +108,9 @@ trimmed to what each phase needs.
 - **Embedding provider (decided without an answer yet):** the embedding interface supports `fastembed` (local
   `BAAI/bge-small-en-v1.5`, default) and `gemini` (`gemini-embedding-001`), chosen per assistant in YAML. Local
   embeddings are real model embeddings with no key or quota, so calibration could be run live here.
+- Sample content follows the SAMPLE DATA section: leave policy, holiday calendar and travel policy for `leave_helper`
+  (label `tenant:local-development`), and the Nova Horizon report for `finance_helper` (label `role:chatbot-admin`, so
+  `dev_user` gets nothing and `dev_admin` gets cited chunks).
 - Knowledge source paths are relative to `CONTENT_ROOT` (default `../content`) and may not escape it.
 - When retrieval finds nothing the user may see, `/chat` returns a fixed "I don't know" answer without a model call.
 - `POST /search` (read-only, behind auth) exposes permission-filtered retrieval for live checks and Phase 8 evaluation.

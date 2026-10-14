@@ -1,7 +1,7 @@
 # Fictional sample assistant. Secrets never go here: the API key comes from GEMINI_API_KEY.
 assistant_id: leave_helper
 display_name: Leave Helper
-description: Answers questions about the (fictional) leave and holiday policy.
+description: Answers questions about the (fictional) leave, holiday and travel policies.
 tenant_id: local-development
 model:
   provider: gemini
@@ -11,16 +11,14 @@ retrieval:
   top_k: 5
   embedding_provider: fastembed
   embedding_model: BAAI/bge-small-en-v1.5
-  # Measured with eval/calibration/leave_helper.yaml (see docs/retrieval.md):
-  # relevant 0.6145-0.8820, unrelated 0.3928-0.5960 -> midpoint.
-  min_similarity: 0.605
+  # Measured with eval/calibration/leave_helper.yaml (docs/retrieval.md): relevant 0.6203-0.8822,
+  # unrelated 0.3524-0.6318. Ranges overlap by one query ("book a meeting room", 0.6318), so the
+  # cut-off keeps every relevant query; the grounding rules handle that false positive.
+  min_similarity: 0.62
 system_prompt: |
-  You are Leave Helper for Northwind Fictional Ltd. Answer questions about leave and public
-  holidays using only the provided context. Be concise.
+  You are Leave Helper for Northwind Fictional Ltd. Answer questions about leave, holidays and travel
+  using only the provided context. Be concise.
 knowledge_sources:
   - type: filesystem
-    path: leave_helper/public
+    path: leave_helper
     access_labels: ["tenant:local-development"]
-  - type: filesystem
-    path: leave_helper/managers
-    access_labels: ["role:chatbot-admin"]

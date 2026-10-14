@@ -25,14 +25,38 @@ class Chunk:
 
 
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
+_TABLE_SEPARATOR = re.compile(r"^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$")
+
+
+def _is_table(paragraph: str) -> bool:
+    lines = paragraph.splitlines()
+    return len(lines) >= 2 and "|" in lines[0] and bool(_TABLE_SEPARATOR.match(lines[1]))
+
+
+def _table_units(paragraph: str, max_chars: int) -> list[str]:
+    """Splits a Markdown table by rows; every piece repeats the header and separator."""
+    lines = paragraph.splitlines()
+    header = "\n".join(lines[:2])
+    units: list[str] = []
+    current = header
+    for row in lines[2:]:
+        if current != header and len(current) + 1 + len(row) > max_chars:
+            units.append(current)
+            current = header
+        current += "\n" + row
+    units.append(current)
+    return units
 
 
 def _units(text: str, max_chars: int) -> list[str]:
-    """Paragraphs, then sentences, then hard slices, each at most max_chars."""
+    """Tables by rows, then paragraphs, sentences and hard slices, each at most max_chars."""
     units: list[str] = []
     for paragraph in re.split(r"\n\s*\n", text):
         paragraph = paragraph.strip()
         if not paragraph:
+            continue
+        if _is_table(paragraph):
+            units.extend(_table_units(paragraph, max_chars))
             continue
         if len(paragraph) <= max_chars:
             units.append(paragraph)
@@ -55,6 +79,10 @@ def _split_section(section: Section, max_chars: int, overlap: int) -> list[str]:
             current = candidate
             continue
         pieces.append(current)
+        if _is_table(unit):
+            # A table piece must start with its header, so it gets no overlap prefix.
+            current = unit
+            continue
         tail = current[-overlap:] if overlap else ""
         tail = tail[tail.find(" ") + 1 :] if " " in tail else tail
         current = f"{tail} {unit}".strip() if len(tail) + len(unit) < max_chars else unit

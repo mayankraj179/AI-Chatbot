@@ -1,26 +1,26 @@
 # Calibration queries for min_similarity (fictional content in content/leave_helper).
-# relevant: answerable from the documents; unrelated: must not retrieve anything.
+# relevant: answerable from the documents; unrelated: must fall below the cut-off.
 assistant_id: leave_helper
 relevant:
-  - How many days of annual leave do I get per year?
-  - Can I carry over unused annual leave?
+  - How many days of earned leave do I get per year?
+  - What is the carry-forward cap for earned leave?
   - How many casual leave days are there?
-  - Do I need a medical certificate for sick leave?
-  - How long is parental leave for partners?
-  - How far in advance must I apply for annual leave?
-  - Which public holidays are there in 2026?
-  - When is Founders' Day?
-  - What happens if I work on a public holiday?
-  - How quickly must managers approve leave requests?
-  - How many people from one team can be on leave during the quarter-end freeze?
+  - Do unused casual leaves carry forward?
+  - How far in advance must I apply for earned leave?
+  - Is Holi a floating holiday?
+  - Which days are official holidays in 2026?
+  - Is 14 November a floating holiday?
+  - What is the daily stipend for a partner site assignment?
+  - Do I get a stipend for a four day assignment?
+  - How early should I book travel?
 unrelated:
-  - What is the capital of Australia?
+  - What is the capital of France?
   - How do I reset my laptop password?
   - Explain how a transformer neural network works.
   - What is the best recipe for chocolate cake?
   - Who won the football world cup in 2018?
-  - How do I file an expense report for a client dinner?
   - What is the stock price of the company today?
   - Write a Python function that reverses a string.
   - What is the company's policy on remote work equipment?
   - How do I book a meeting room?
+  - What was Nova Horizon's revenue in FY2023?

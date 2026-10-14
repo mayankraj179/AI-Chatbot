@@ -154,3 +154,20 @@ def test_unbroken_text_is_hard_split() -> None:
     chunks = chunk_document(doc, max_chars=300, overlap_chars=0)
     assert "".join(c.text for c in chunks) == "x" * 1000
     assert all(len(c.text) <= 300 for c in chunks)
+
+
+def test_markdown_table_header_stays_with_rows() -> None:
+    header = "| Date | Is it a floating holiday? |\n|---|---|"
+    rows = "\n".join(f"| {d} January | Official Holiday. Really? Yes. |" for d in range(1, 30))
+    text = f"Intro sentence. Another one?\n\n{header}\n{rows}\n\nRest all days are NOT Floating."
+    doc = ParsedDocument("cal", "text/markdown", [Section(("Calendar",), text)])
+    chunks = chunk_document(doc, max_chars=400, overlap_chars=80)
+    table_chunks = [c for c in chunks if "| Official Holiday" in c.text]
+    assert len(table_chunks) > 1
+    for chunk in table_chunks:
+        assert chunk.text.startswith(header + "\n")
+    all_rows = [
+        line for c in table_chunks for line in c.text.splitlines()[2:] if line.startswith("|")
+    ]
+    assert all_rows == rows.splitlines()
+    assert chunks[-1].text.endswith("Rest all days are NOT Floating.")

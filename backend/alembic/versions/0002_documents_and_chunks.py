@@ -35,6 +35,9 @@ def upgrade() -> None:
         sa.Column("content_hash", sa.String(64), nullable=False),
         sa.Column("embedding_model", sa.String(200), nullable=False),
         sa.Column("access_labels", postgresql.ARRAY(sa.Text()), nullable=False),
+        sa.Column("version", sa.Integer(), nullable=False, server_default="1"),
+        # Set when the source file disappears; the row and its chunks are kept.
+        sa.Column("retired_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
         ),
@@ -60,6 +63,7 @@ def upgrade() -> None:
         ),
         sa.Column("tenant_id", sa.String(128), nullable=False),
         sa.Column("assistant_id", sa.String(64), nullable=False),
+        sa.Column("version", sa.Integer(), nullable=False),
         sa.Column("chunk_index", sa.Integer(), nullable=False),
         sa.Column("text", sa.Text(), nullable=False),
         sa.Column("heading_path", postgresql.ARRAY(sa.Text()), nullable=False),
@@ -67,16 +71,23 @@ def upgrade() -> None:
         # Copied from the document so the search WHERE clause filters without a join.
         sa.Column("access_labels", postgresql.ARRAY(sa.Text()), nullable=False),
         sa.Column("embedding_model", sa.String(200), nullable=False),
+        # Older versions are flagged, never deleted; search only reads active chunks.
+        sa.Column("retired_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
         ),
-        sa.UniqueConstraint("document_id", "chunk_index"),
+        sa.UniqueConstraint("document_id", "version", "chunk_index"),
         sa.CheckConstraint("cardinality(access_labels) > 0", name="chunks_labels_nonempty"),
     )
     # Dimensionless so models with different sizes can coexist; rows are only ever
     # compared within one embedding_model.
     op.execute("ALTER TABLE chunks ADD COLUMN embedding vector NOT NULL")
-    op.create_index("ix_chunks_scope", "chunks", ["tenant_id", "assistant_id", "embedding_model"])
+    op.create_index(
+        "ix_chunks_active_scope",
+        "chunks",
+        ["tenant_id", "assistant_id", "embedding_model"],
+        postgresql_where=sa.text("retired_at IS NULL"),
+    )
     op.create_index("ix_chunks_access_labels", "chunks", ["access_labels"], postgresql_using="gin")
 
 

@@ -1,0 +1,23 @@
+# Fictional sample assistant whose only source is restricted to the chatbot-admin realm role.
+assistant_id: finance_helper
+display_name: Finance Helper
+description: Answers questions about the (fictional) Nova Horizon Inc. financial report.
+tenant_id: local-development
+model:
+  provider: gemini
+  model_name: gemini-2.5-flash
+retrieval:
+  enabled: true
+  top_k: 5
+  embedding_provider: fastembed
+  embedding_model: BAAI/bge-small-en-v1.5
+  # Measured with eval/calibration/finance_helper.yaml (docs/retrieval.md): relevant
+  # 0.7077-0.8447, unrelated 0.3168-0.4594 -> midpoint.
+  min_similarity: 0.584
+system_prompt: |
+  You are Finance Helper. Answer questions about the Nova Horizon Inc. financial report using only the
+  provided context. State figures with their units.
+knowledge_sources:
+  - type: filesystem
+    path: finance_helper
+    access_labels: ["role:chatbot-admin"]
