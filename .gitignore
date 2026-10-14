@@ -1,0 +1,39 @@
+# Secrets - never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+.coverage
+htmlcov/
+
+# Node / frontend
+node_modules/
+dist/
+dist-embed/
+
+# Build output
+build/
+
+# Real company documents - never commit (fictional samples live in backend/sample_data/)
+real-documents/
+backend/documents/
+
+# Evaluation output and logs
+eval-results/
+*.log
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
